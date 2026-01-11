@@ -1,21 +1,30 @@
 // DOM Elements
 const sourceText = document.getElementById('source-text');
 const targetText = document.getElementById('target-text');
-const sourceLang = document.getElementById('source-lang');
-const targetLang = document.getElementById('target-lang');
-const swapBtn = document.getElementById('swap-languages');
+const targetLangLabel = document.getElementById('target-lang-label');
+const selectedLangSpan = document.getElementById('selected-lang');
+const langDropdownBtn = document.getElementById('lang-dropdown-btn');
+const langOptions = document.getElementById('lang-options');
+const translateBtn = document.getElementById('translate-btn');
 const micBtn = document.getElementById('mic-btn');
 const speakBtn = document.getElementById('speak-btn');
 const clearBtn = document.getElementById('clear-btn');
 const copyBtn = document.getElementById('copy-btn');
-const charCount = document.querySelector('.char-count');
+const charCountSpan = document.getElementById('char-count');
 const statusMessage = document.getElementById('status-message');
 const transliterationDiv = document.getElementById('transliteration');
-const translationStatus = document.getElementById('translation-status');
+
+// Language data
+const languages = {
+    'es': 'Spanish',
+    'de': 'German',
+    'fr': 'French',
+    'he': 'Hebrew'
+};
 
 // Translation state
-let translationTimeout;
 let currentTranslation = '';
+let selectedLang = 'es';
 
 // Speech Recognition Setup
 let recognition;
@@ -34,87 +43,134 @@ const synth = window.speechSynthesis;
 
 // Event Listeners
 sourceText.addEventListener('input', handleInput);
-sourceLang.addEventListener('change', translateText);
-targetLang.addEventListener('change', translateText);
-swapBtn.addEventListener('click', swapLanguages);
+translateBtn.addEventListener('click', translateText);
+langDropdownBtn.addEventListener('click', toggleDropdown);
 micBtn.addEventListener('click', toggleSpeechRecognition);
 speakBtn.addEventListener('click', speakTranslation);
 clearBtn.addEventListener('click', clearText);
 copyBtn.addEventListener('click', copyTranslation);
 
+// Language option click handlers
+document.querySelectorAll('.lang-option').forEach(option => {
+    option.addEventListener('click', () => selectLanguage(option));
+});
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+    if (!langDropdownBtn.contains(e.target) && !langOptions.contains(e.target)) {
+        langOptions.classList.remove('show');
+    }
+});
+
 // Handle text input
 function handleInput() {
     const text = sourceText.value;
-    charCount.textContent = `${text.length} / 5000`;
-
-    // Clear previous timeout
-    clearTimeout(translationTimeout);
-
-    if (text.trim().length > 0) {
-        // Debounce translation (wait 500ms after user stops typing)
-        translationTimeout = setTimeout(() => {
-            translateText();
-        }, 500);
-    } else {
-        targetText.textContent = '';
-        transliterationDiv.classList.remove('visible');
-        speakBtn.disabled = true;
-        copyBtn.disabled = true;
-        translationStatus.textContent = 'Translation will appear here';
-    }
+    charCountSpan.textContent = text.length;
 }
 
-// Translate text using MyMemory API
+// Toggle dropdown
+function toggleDropdown() {
+    langOptions.classList.toggle('show');
+}
+
+// Select language
+function selectLanguage(option) {
+    const lang = option.dataset.lang;
+    const langName = option.textContent;
+
+    // Update selection
+    document.querySelectorAll('.lang-option').forEach(opt => {
+        opt.classList.remove('selected');
+    });
+    option.classList.add('selected');
+
+    selectedLang = lang;
+    selectedLangSpan.textContent = langName;
+    targetLangLabel.textContent = langName.toUpperCase();
+
+    // Close dropdown
+    langOptions.classList.remove('show');
+
+    // Clear previous translation
+    targetText.textContent = '';
+    transliterationDiv.classList.remove('visible');
+    speakBtn.disabled = true;
+    copyBtn.disabled = true;
+}
+
+// Translate text using MyMemory API with CORS proxy fallback
 async function translateText() {
     const text = sourceText.value.trim();
 
     if (!text) {
+        showStatus('Please enter text to translate', 'info');
         return;
     }
 
-    const srcLang = sourceLang.value === 'auto' ? 'en' : sourceLang.value;
-    const tgtLang = targetLang.value;
+    const srcLang = 'en';
+    const tgtLang = selectedLang;
 
-    if (srcLang === tgtLang) {
-        targetText.textContent = text;
-        currentTranslation = text;
-        speakBtn.disabled = false;
-        copyBtn.disabled = false;
-        translationStatus.textContent = 'Same language selected';
-        handleTransliteration(text, tgtLang);
-        return;
-    }
-
-    translationStatus.textContent = 'Translating...';
+    translateBtn.disabled = true;
+    translateBtn.innerHTML = `
+        Translating...
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin">
+            <circle cx="12" cy="12" r="10"></circle>
+        </svg>
+    `;
 
     try {
         // Using MyMemory Translation API (free, no API key required)
         const langPair = `${srcLang}|${tgtLang}`;
-        const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langPair}`;
+        const baseUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langPair}`;
 
-        const response = await fetch(url);
-        const data = await response.json();
+        let response;
+        let data;
+
+        // Try direct request first
+        try {
+            response = await fetch(baseUrl);
+            data = await response.json();
+        } catch (corsError) {
+            // If CORS error, try with a CORS proxy
+            console.log('Direct request failed, trying CORS proxy...');
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(baseUrl)}`;
+            response = await fetch(proxyUrl);
+            data = await response.json();
+        }
 
         if (data.responseStatus === 200 || data.responseData) {
             currentTranslation = data.responseData.translatedText;
+
+            // Check for API limit message
+            if (currentTranslation.includes('MYMEMORY WARNING')) {
+                currentTranslation = currentTranslation.split('MYMEMORY WARNING')[0].trim();
+            }
+
             targetText.textContent = currentTranslation;
             speakBtn.disabled = false;
             copyBtn.disabled = false;
-            translationStatus.textContent = 'Translation complete';
             showStatus('Translation successful', 'success');
 
             // Handle transliteration for Hebrew
             handleTransliteration(currentTranslation, tgtLang);
         } else {
-            throw new Error('Translation failed');
+            throw new Error(data.responseDetails || 'Translation failed');
         }
     } catch (error) {
         console.error('Translation error:', error);
         targetText.textContent = 'Translation error. Please try again.';
-        translationStatus.textContent = 'Translation failed';
-        showStatus('Translation failed. Please check your connection.', 'error');
+        showStatus('Translation failed: ' + error.message, 'error');
         speakBtn.disabled = true;
         copyBtn.disabled = true;
+    } finally {
+        translateBtn.disabled = false;
+        translateBtn.innerHTML = `
+            Translate
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+        `;
     }
 }
 
@@ -164,25 +220,6 @@ function transliterateHebrew(text) {
     return hasHebrew ? result : '';
 }
 
-// Swap languages
-function swapLanguages() {
-    if (sourceLang.value === 'auto') {
-        showStatus('Cannot swap when "Detect Language" is selected', 'error');
-        return;
-    }
-
-    const tempLang = sourceLang.value;
-    const tempText = sourceText.value;
-
-    sourceLang.value = targetLang.value;
-    targetLang.value = tempLang;
-    sourceText.value = currentTranslation || '';
-
-    if (sourceText.value) {
-        translateText();
-    }
-}
-
 // Speech Recognition
 function toggleSpeechRecognition() {
     if (!recognition) {
@@ -196,18 +233,7 @@ function toggleSpeechRecognition() {
         return;
     }
 
-    const lang = sourceLang.value === 'auto' ? 'en' : sourceLang.value;
-
-    // Map language codes to speech recognition codes
-    const langMap = {
-        'en': 'en-US',
-        'es': 'es-ES',
-        'fr': 'fr-FR',
-        'de': 'de-DE',
-        'he': 'he-IL'
-    };
-
-    recognition.lang = langMap[lang] || 'en-US';
+    recognition.lang = 'en-US';
 
     recognition.onstart = function() {
         micBtn.classList.add('recording');
@@ -248,7 +274,6 @@ function speakTranslation() {
     synth.cancel();
 
     const utterance = new SpeechSynthesisUtterance(currentTranslation);
-    const lang = targetLang.value;
 
     // Map language codes to speech synthesis codes
     const langMap = {
@@ -259,7 +284,7 @@ function speakTranslation() {
         'he': 'he-IL'
     };
 
-    utterance.lang = langMap[lang] || 'en-US';
+    utterance.lang = langMap[selectedLang] || 'en-US';
     utterance.rate = 0.9;
     utterance.pitch = 1;
 
@@ -285,12 +310,10 @@ function clearText() {
     targetText.textContent = '';
     transliterationDiv.classList.remove('visible');
     currentTranslation = '';
-    charCount.textContent = '0 / 5000';
+    charCountSpan.textContent = '0';
     speakBtn.disabled = true;
     copyBtn.disabled = true;
-    translationStatus.textContent = 'Translation will appear here';
-    statusMessage.textContent = '';
-    statusMessage.className = 'status-message';
+    statusMessage.classList.remove('show');
 }
 
 // Copy translation
@@ -314,11 +337,10 @@ async function copyTranslation() {
 // Show status message
 function showStatus(message, type) {
     statusMessage.textContent = message;
-    statusMessage.className = `status-message ${type}`;
+    statusMessage.className = `status-message ${type} show`;
 
     setTimeout(() => {
-        statusMessage.textContent = '';
-        statusMessage.className = 'status-message';
+        statusMessage.classList.remove('show');
     }, 3000);
 }
 
@@ -331,4 +353,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Set focus on input
     sourceText.focus();
+
+    // Set default language
+    selectedLangSpan.textContent = 'Spanish';
+    targetLangLabel.textContent = 'SPANISH';
 });

@@ -9,106 +9,100 @@
 <body>
     <div class="container">
         <header>
-            <h1>🌐 Language Translator</h1>
+            <h1>Language Translator</h1>
         </header>
 
         <div class="translator-wrapper">
-            <!-- Language Selectors -->
-            <div class="language-bar">
-                <div class="language-select">
-                    <label for="source-lang">From:</label>
-                    <select id="source-lang">
-                        <option value="auto">Detect Language</option>
-                        <option value="en" selected>English</option>
-                        <option value="es">Spanish</option>
-                        <option value="fr">French</option>
-                        <option value="de">German</option>
-                        <option value="he">Hebrew</option>
-                    </select>
-                </div>
-
-                <button id="swap-languages" class="swap-btn" title="Swap languages">⇄</button>
-
-                <div class="language-select">
-                    <label for="target-lang">To:</label>
-                    <select id="target-lang">
-                        <option value="es" selected>Spanish</option>
-                        <option value="fr">French</option>
-                        <option value="de">German</option>
-                        <option value="he">Hebrew</option>
-                        <option value="en">English</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Translation Boxes -->
-            <div class="translation-container">
-                <!-- Input Box -->
-                <div class="translation-box input-box">
-                    <div class="box-header">
-                        <span class="char-count">0 / 5000</span>
-                    </div>
-                    <textarea
-                        id="source-text"
-                        placeholder="Enter text to translate..."
-                        spellcheck="true"
-                        maxlength="5000"
-                    ></textarea>
-                    <div class="box-footer">
+            <!-- Input Box -->
+            <div class="translation-box input-box">
+                <div class="box-header">
+                    <span class="lang-label">ENGLISH</span>
+                    <div class="header-actions">
                         <button id="mic-btn" class="icon-btn" title="Speak">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
                                 <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
                                 <line x1="12" y1="19" x2="12" y2="23"></line>
                                 <line x1="8" y1="23" x2="16" y2="23"></line>
                             </svg>
                         </button>
-                        <button id="clear-btn" class="icon-btn" title="Clear text">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <button id="clear-btn" class="icon-btn" title="Clear">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <line x1="18" y1="6" x2="6" y2="18"></line>
                                 <line x1="6" y1="6" x2="18" y2="18"></line>
                             </svg>
                         </button>
+                        <button id="spell-btn" class="icon-btn spell-btn" title="Check Spelling">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 20h9"></path>
+                                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                            </svg>
+                            <span>Check Spelling</span>
+                        </button>
                     </div>
                 </div>
+                <textarea
+                    id="source-text"
+                    placeholder="Enter text to translate..."
+                    spellcheck="true"
+                    maxlength="5000"
+                ></textarea>
+                <div class="box-footer">
+                    <span class="char-count"><span id="char-count">0</span> chars</span>
+                </div>
+            </div>
 
-                <!-- Output Box -->
-                <div class="translation-box output-box">
-                    <div class="box-header">
-                        <span id="translation-status">Translation will appear here</span>
+            <!-- Language Selector & Translate Button -->
+            <div class="middle-controls">
+                <div class="language-dropdown">
+                    <button id="lang-dropdown-btn" class="dropdown-btn">
+                        <span id="selected-lang">Spanish</span>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div id="lang-options" class="dropdown-options">
+                        <div class="lang-option" data-lang="es">Spanish</div>
+                        <div class="lang-option" data-lang="de">German</div>
+                        <div class="lang-option" data-lang="fr">French</div>
+                        <div class="lang-option selected" data-lang="he">Hebrew</div>
                     </div>
-                    <div id="target-text" class="output-content">
-                        <!-- Translation will appear here -->
-                    </div>
-                    <div id="transliteration" class="transliteration">
-                        <!-- Transliteration for Hebrew will appear here -->
-                    </div>
-                    <div class="box-footer">
+                </div>
+                <button id="translate-btn" class="translate-btn">
+                    Translate
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Output Box -->
+            <div class="translation-box output-box">
+                <div class="box-header">
+                    <span class="lang-label" id="target-lang-label">HEBREW</span>
+                    <div class="header-actions">
                         <button id="speak-btn" class="icon-btn" title="Listen" disabled>
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
                                 <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
                                 <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
                             </svg>
                         </button>
-                        <button id="copy-btn" class="icon-btn" title="Copy translation" disabled>
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <button id="copy-btn" class="icon-btn" title="Copy" disabled>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                             </svg>
                         </button>
                     </div>
                 </div>
+                <div id="target-text" class="output-content"></div>
+                <div id="transliteration" class="transliteration"></div>
             </div>
-
-            <!-- Status Messages -->
-            <div id="status-message" class="status-message"></div>
         </div>
 
-        <footer>
-            <p>Supports Spanish, French, German, and Hebrew translation</p>
-            <p class="note">Note: Speech recognition works best in Chrome. Translation uses MyMemory API.</p>
-        </footer>
+        <div id="status-message" class="status-message"></div>
     </div>
 
     <script src="script.js"></script>
