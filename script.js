@@ -64,7 +64,7 @@ function handleInput() {
     }
 }
 
-// Translate text using MyMemory API
+// Translate text using MyMemory API with CORS proxy fallback
 async function translateText() {
     const text = sourceText.value.trim();
 
@@ -86,17 +86,36 @@ async function translateText() {
     }
 
     translationStatus.textContent = 'Translating...';
+    targetText.textContent = '';
 
     try {
         // Using MyMemory Translation API (free, no API key required)
         const langPair = `${srcLang}|${tgtLang}`;
-        const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langPair}`;
+        const baseUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langPair}`;
 
-        const response = await fetch(url);
-        const data = await response.json();
+        let response;
+        let data;
+
+        // Try direct request first
+        try {
+            response = await fetch(baseUrl);
+            data = await response.json();
+        } catch (corsError) {
+            // If CORS error, try with a CORS proxy
+            console.log('Direct request failed, trying CORS proxy...');
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(baseUrl)}`;
+            response = await fetch(proxyUrl);
+            data = await response.json();
+        }
 
         if (data.responseStatus === 200 || data.responseData) {
             currentTranslation = data.responseData.translatedText;
+
+            // Check for API limit message
+            if (currentTranslation.includes('MYMEMORY WARNING')) {
+                currentTranslation = currentTranslation.split('MYMEMORY WARNING')[0].trim();
+            }
+
             targetText.textContent = currentTranslation;
             speakBtn.disabled = false;
             copyBtn.disabled = false;
@@ -106,13 +125,13 @@ async function translateText() {
             // Handle transliteration for Hebrew
             handleTransliteration(currentTranslation, tgtLang);
         } else {
-            throw new Error('Translation failed');
+            throw new Error(data.responseDetails || 'Translation failed');
         }
     } catch (error) {
         console.error('Translation error:', error);
         targetText.textContent = 'Translation error. Please try again.';
         translationStatus.textContent = 'Translation failed';
-        showStatus('Translation failed. Please check your connection.', 'error');
+        showStatus('Translation failed: ' + error.message, 'error');
         speakBtn.disabled = true;
         copyBtn.disabled = true;
     }
